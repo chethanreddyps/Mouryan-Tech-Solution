@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #15803d;
+  --color-primary-hover: #166534;
+  --color-secondary: #1d4ed8;
+  --color-secondary-hover: #1e40af;
+  
+  --color-border: #e2e8f0;
+  --color-background: #ffffff;
+  --color-foreground: #0f172a;
+  
+  --font-sans: "Inter", sans-serif;
+  --font-heading: "Poppins", sans-serif;
+}
+
+@layer base {
+  .dark {
+    --color-border: #334155;
+    --color-background: #0f172a;
+    --color-foreground: #f8fafc;
+  }
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Form controls otherwise use browser-default text colours, which can be
+     near-black against the dark site theme. */
+  button,
+  input,
+  textarea,
+  select {
+    color: inherit;
+    font: inherit;
+  }
+  
+  ::selection {
+    background-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+    color: #14532d;
+  }
+  
+  .dark ::selection {
+    color: #dcfce7;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* The admin workspace always uses a light palette so form values remain clear
+   even when the public website is viewed in dark mode. */
+.admin-panel {
+  min-height: 100vh;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.admin-panel .admin-sidebar,
+.admin-panel .admin-card {
+  background: #ffffff;
+}
+
+.admin-panel h1,
+.admin-panel h2,
+.admin-panel h3,
+.admin-panel h4,
+.admin-panel label {
+  color: #0f172a;
+}
+
+.admin-panel input,
+.admin-panel textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.admin-panel input::placeholder,
+.admin-panel textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+.admin-panel .text-slate-500,
+.admin-panel .text-slate-600,
+.admin-panel .text-slate-400 {
+  color: #475569;
+}

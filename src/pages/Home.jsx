@@ -1,0 +1,473 @@
+﻿import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  MessageCircle, ShieldCheck, Clock, ThumbsUp, Zap, Server,
+  ChevronDown, ChevronUp, Star, Quote, Phone, Send, CheckCircle2, XCircle
+} from "lucide-react";
+import SEO from "../components/SEO";
+import ContactForm from "../components/ContactForm";
+import { useContent } from "../context/ContentContext";
+import { generateServiceEnquiryLink } from "../utils/whatsapp";
+
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const MAX_REVIEW_IMAGE_MB = 3;
+const MAX_REVIEW_IMAGE_BYTES = MAX_REVIEW_IMAGE_MB * 1024 * 1024;
+
+/* ── icon helper ─────────────────────────────────────────── */
+const getIcon = (name) => {
+  const cls = "w-7 h-7";
+  switch (name) {
+    case "cctv":         return <ShieldCheck className={cls} />;
+    case "network":      return <Zap className={cls} />;
+    case "shield-check": return <ShieldCheck className={cls} />;
+    default:             return <Server className={cls} />;
+  }
+};
+
+/* ── FAQ accordion ───────────────────────────────────────── */
+const FAQItem = ({ faq, isOpen, toggle }) => (
+  <div className="border border-border rounded-xl overflow-hidden mb-3 bg-white dark:bg-slate-900">
+    <button onClick={toggle}
+      className="w-full px-5 py-4 flex justify-between items-center text-left bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+      <span className="font-semibold text-sm md:text-base text-slate-900 dark:text-slate-100 pr-4">{faq.question}</span>
+      {isOpen
+        ? <ChevronUp className="text-primary shrink-0" size={20} />
+        : <ChevronDown className="text-slate-400 shrink-0" size={20} />}
+    </button>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}
+          className="px-5 py-4 text-slate-600 dark:text-slate-300 border-t border-border text-sm md:text-base leading-relaxed">
+          {faq.answer}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+);
+
+/* ── single review card ──────────────────────────────────── */
+const ReviewCard = ({ review, index }) => (
+  <motion.article
+    initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true }} transition={{ duration: 0.4, delay: index * 0.07 }}
+    className="relative rounded-2xl border border-border bg-white dark:bg-slate-800 p-6 shadow-sm flex flex-col gap-4">
+    <Quote className="absolute top-4 right-4 text-primary/15" size={28} />
+    <div className="flex gap-1 text-amber-400">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Star key={i} size={15} fill={i < (review.rating || 5) ? "currentColor" : "none"}
+          className={i < (review.rating || 5) ? "" : "text-slate-300"} />
+      ))}
+    </div>
+    {review.imageUrl && (
+      <img
+        src={review.imageUrl}
+        alt={`${review.name || "Customer"} review`}
+        className="w-full h-44 object-cover rounded-xl border border-border"
+        loading="lazy"
+      />
+    )}
+    <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed flex-1">"{review.comment}"</p>
+    <div className="border-t border-border pt-3 mt-auto">
+      <p className="font-semibold text-slate-900 dark:text-white text-sm">{review.name}</p>
+      {review.service && <p className="text-xs text-primary mt-0.5 font-medium">{review.service}</p>}
+      {review.date && <p className="text-xs text-slate-400 mt-0.5">{review.date}</p>}
+    </div>
+  </motion.article>
+);
+
+/* ── star picker ─────────────────────────────────────────── */
+const StarPicker = ({ value, onChange }) => (
+  <div className="flex gap-1">
+    {[1, 2, 3, 4, 5].map((n) => (
+      <button key={n} type="button" onClick={() => onChange(n)}
+        className="focus:outline-none transition-transform hover:scale-110 active:scale-95">
+        <Star size={28}
+          fill={n <= value ? "currentColor" : "none"}
+          className={n <= value ? "text-amber-400" : "text-slate-300 dark:text-slate-600"} />
+      </button>
+    ))}
+  </div>
+);
+
+/* ── customer review form ────────────────────────────────── */
+const ReviewForm = ({ services, onSubmitted }) => {
+  const [form, setForm] = useState({ name: "", service: "", rating: 5, comment: "" });
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
+  const [status, setStatus] = useState("idle"); // idle | submitting | success | error
+  const [errMsg, setErrMsg] = useState("");
+
+  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name.trim() || !form.comment.trim()) return;
+    setStatus("submitting");
+    setErrMsg("");
+    try {
+      const payload = new FormData();
+      payload.append("name", form.name);
+      payload.append("service", form.service);
+      payload.append("rating", String(form.rating));
+      payload.append("comment", form.comment);
+      if (imageFile) payload.append("image", imageFile);
+
+      const res = await fetch(`${API}/api/reviews`, {
+        method: "POST",
+        body: payload
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to submit review.");
+      setStatus("success");
+      setImageFile(null);
+      setImagePreview("");
+      onSubmitted();
+    } catch (err) {
+      setErrMsg(err.message);
+      setStatus("error");
+    }
+  };
+
+  if (status === "success") {
+    return (
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="flex flex-col items-center gap-4 py-10 text-center">
+        <CheckCircle2 size={52} className="text-primary" />
+        <h3 className="text-xl font-bold text-slate-900 dark:text-white">Thank you for your review!</h3>
+        <p className="text-slate-600 dark:text-slate-300 text-sm">Your feedback has been published and helps others choose us.</p>
+      </motion.div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Your Name *</label>
+          <input type="text" required value={form.name} onChange={set("name")} maxLength={100}
+            placeholder="e.g. Ravi Kumar"
+            className="w-full px-4 py-3 rounded-xl border border-border bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm" />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Service Used</label>
+          <select value={form.service} onChange={set("service")}
+            className="w-full px-4 py-3 rounded-xl border border-border bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm">
+            <option value="">— Select a service —</option>
+            {services.map((s) => <option key={s.id} value={s.title}>{s.title}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Your Rating *</label>
+        <StarPicker value={form.rating} onChange={(n) => setForm((f) => ({ ...f, rating: n }))} />
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Your Review *</label>
+        <textarea required rows={4} value={form.comment} onChange={set("comment")} maxLength={1000}
+          placeholder="Tell others about your experience with Mouryan Tech Solutions..."
+          className="w-full px-4 py-3 rounded-xl border border-border bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm resize-none" />
+        <p className="text-xs text-slate-400 mt-1 text-right">{form.comment.length}/1000</p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+          Add Photo (Optional)
+        </label>
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) {
+              setImageFile(null);
+              setImagePreview("");
+              return;
+            }
+            if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+              setErrMsg("Only PNG, JPG, or WebP images are allowed.");
+              e.target.value = "";
+              return;
+            }
+            if (file.size > MAX_REVIEW_IMAGE_BYTES) {
+              setErrMsg(`Image must be ${MAX_REVIEW_IMAGE_MB} MB or smaller.`);
+              e.target.value = "";
+              return;
+            }
+            setErrMsg("");
+            setImageFile(file);
+            setImagePreview(URL.createObjectURL(file));
+          }}
+          className="w-full text-sm file:mr-4 file:rounded-full file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:font-semibold file:text-primary hover:file:bg-primary/20"
+        />
+        {imagePreview && (
+          <img
+            src={imagePreview}
+            alt="Review preview"
+            className="mt-3 h-32 w-full max-w-sm rounded-xl object-cover border border-border"
+          />
+        )}
+      </div>
+
+      {status === "error" && (
+        <div className="flex items-center gap-2 text-red-600 bg-red-50 dark:bg-red-900/20 px-4 py-3 rounded-xl text-sm">
+          <XCircle size={18} /> {errMsg}
+        </div>
+      )}
+
+      <button type="submit" disabled={status === "submitting"}
+        className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-white font-semibold py-3.5 px-8 rounded-full hover:bg-primary-hover transition-all shadow-md disabled:opacity-60">
+        {status === "submitting"
+          ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Submitting...</>
+          : <><Send size={16} /> Submit Review</>}
+      </button>
+    </form>
+  );
+};
+
+/* ══════════════════════════════════════════════════════════ */
+const Home = () => {
+  const [openFaqIndex, setOpenFaqIndex] = useState(0);
+  const { companyInfo, services, faqs, reviews = [], refreshContent } = useContent();
+
+  const companyName = companyInfo.name || "Mouryan Tech Solutions";
+  const allReviews = reviews;
+
+  const handleNewReview = async () => {
+    await refreshContent();
+  };
+
+  const avgRating = allReviews.length > 0
+    ? (allReviews.reduce((s, r) => s + (r.rating || 5), 0) / allReviews.length).toFixed(1)
+    : null;
+
+  return (
+    <>
+      <SEO title="Home"
+        description="Mouryan Tech Solutions - Complete IT Solutions for Homes & Businesses in Bengaluru. Laptop repair, CCTV, networking, and data recovery." />
+
+      {/* ── 1. HERO ──────────────────────────────────────────── */}
+      <section className="relative min-h-[100svh] flex items-center bg-slate-50 dark:bg-slate-900 overflow-hidden pt-20">
+        <div className="absolute top-0 right-0 w-3/4 md:w-1/2 h-full bg-gradient-to-bl from-primary/10 to-transparent rounded-bl-full pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-1/2 md:w-1/3 h-1/2 bg-gradient-to-tr from-secondary/10 to-transparent rounded-tr-full pointer-events-none" />
+        <div className="absolute top-1/3 right-8 w-48 h-48 md:w-80 md:h-80 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full z-10 py-10 md:py-20">
+          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="max-w-3xl">
+
+            {/* ── COMPANY NAME ── big, at the very top */}
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-4">
+              <div className="inline-flex items-center gap-3">
+                <span className="w-3 h-3 rounded-full bg-primary animate-pulse" />
+                <span className="text-4xl sm:text-5xl md:text-6xl font-heading font-extrabold text-primary tracking-tight">
+                  {companyName}
+                </span>
+              </div>
+            </motion.div>
+
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-heading font-extrabold text-slate-900 dark:text-white leading-tight mb-5">
+              Complete IT Solutions for{" "}
+              <span className="text-primary">Homes &amp; Businesses</span>
+            </h1>
+
+            <p className="text-base md:text-lg lg:text-xl text-slate-600 dark:text-slate-300 mb-8 leading-relaxed max-w-2xl">
+              Reliable, affordable, and professional technology support in Bengaluru.
+              Expert service right at your doorstep — zero downtime for your critical systems.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <a href={`tel:${companyInfo.phone}`}
+                className="flex items-center justify-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold py-4 px-7 rounded-full hover:bg-slate-700 transition-all shadow-md text-sm md:text-base">
+                <Phone size={18} /> Call: {companyInfo.phone}
+              </a>
+              <a href={`https://wa.me/91${companyInfo.whatsapp}`} target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 bg-green-600 text-white font-semibold py-4 px-7 rounded-full hover:bg-green-700 transition-all shadow-md text-sm md:text-base">
+                <MessageCircle size={18} /> WhatsApp Us
+              </a>
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-2.5">
+              {["24x7 Support", "Doorstep Service", "All Major Brands", "Bengaluru Wide"].map((b) => (
+                <span key={b} className="text-xs font-semibold px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-border text-slate-600 dark:text-slate-300 shadow-sm">
+                  ✓ {b}
+                </span>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── 2. SERVICES ──────────────────────────────────────── */}
+      <section className="py-16 md:py-24 bg-slate-50 dark:bg-slate-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-10 md:mb-16">
+            <h2 className="text-2xl md:text-4xl font-heading font-bold mb-3 text-slate-900 dark:text-white">Our Premium Services</h2>
+            <p className="text-slate-600 dark:text-slate-300 text-sm md:text-lg">Comprehensive IT support tailored for homes and businesses.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            {services.map((service, index) => (
+              <motion.div key={service.id}
+                initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }} transition={{ duration: 0.4, delay: index * 0.06 }}
+                className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-2xl border border-border hover:shadow-xl transition-all group">
+                <div className="text-primary mb-5 bg-primary/5 w-14 h-14 rounded-2xl flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+                  {getIcon(service.icon)}
+                </div>
+                <h3 className="text-base md:text-lg font-bold font-heading mb-2 text-slate-900 dark:text-white group-hover:text-primary transition-colors">{service.title}</h3>
+                <p className="text-slate-600 dark:text-slate-300 text-xs md:text-sm leading-relaxed mb-5">{service.description}</p>
+                <a href={generateServiceEnquiryLink(service.title, companyInfo.whatsapp)}
+                  target="_blank" rel="noopener noreferrer"
+                  className="text-primary font-semibold text-sm hover:underline">
+                  Enquire Now →
+                </a>
+              </motion.div>
+            ))}
+          </div>
+          <div className="mt-10 text-center">
+            <Link to="/services" className="inline-block bg-white dark:bg-slate-800 border border-border text-slate-900 dark:text-white font-semibold py-3 px-8 rounded-full hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm md:text-base">
+              View All Services
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 3. WHY CHOOSE US ─────────────────────────────────── */}
+      <section className="py-16 md:py-24 bg-white dark:bg-slate-950">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-10 md:mb-16">
+            <h2 className="text-2xl md:text-4xl font-heading font-bold mb-3 text-slate-900 dark:text-white">Why Choose Us</h2>
+            <p className="text-slate-600 dark:text-slate-300 text-sm md:text-lg">We build lasting relationships through reliable service.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {[
+              { icon: <ShieldCheck size={28} />, color: "blue", title: "Professional Technicians", desc: "Certified experts with years of hands-on experience in IT repair and networking." },
+              { icon: <Clock size={28} />, color: "green", title: "24x7 Emergency Support", desc: "Critical IT failures do not wait for business hours, and neither do we." },
+              { icon: <ThumbsUp size={28} />, color: "purple", title: "Customer Satisfaction", desc: "Our priority is a smooth, transparent, and satisfying experience for every client." }
+            ].map(({ icon, color, title, desc }) => (
+              <div key={title} className="flex flex-col items-center text-center p-6 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-border">
+                <div className={`w-14 h-14 bg-${color}-100 dark:bg-${color}-900/30 text-${color === "purple" ? "purple-600" : color === "blue" ? "secondary" : "primary"} rounded-full flex items-center justify-center mb-4`}>
+                  {icon}
+                </div>
+                <h3 className="text-lg font-bold mb-2 text-slate-900 dark:text-white">{title}</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-sm">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 4. REVIEWS ───────────────────────────────────────── */}
+      <section className="py-16 md:py-24 bg-white dark:bg-slate-950">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+          {/* header + rating summary */}
+          <div className="text-center max-w-2xl mx-auto mb-10 md:mb-14">
+            <h2 className="text-2xl md:text-4xl font-heading font-bold mb-3 text-slate-900 dark:text-white">What Our Customers Say</h2>
+            <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base mb-4">Real feedback from people we have helped across Bengaluru.</p>
+            {avgRating && (
+              <div className="inline-flex items-center gap-3 px-5 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-full">
+                <span className="text-2xl font-extrabold text-amber-500">{avgRating}</span>
+                <div className="flex gap-0.5 text-amber-400">
+                  {Array.from({ length: 5 }).map((_, i) => <Star key={i} size={16} fill="currentColor" />)}
+                </div>
+                <span className="text-sm text-amber-700 dark:text-amber-300 font-medium">{allReviews.length} review{allReviews.length !== 1 ? "s" : ""}</span>
+              </div>
+            )}
+          </div>
+
+          {/* review cards */}
+          {allReviews.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-14">
+              {allReviews.map((review, index) => (
+                <ReviewCard key={review.id} review={review} index={index} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10 mb-14">
+              <p className="text-slate-500 dark:text-slate-400 text-sm">No reviews yet. Be the first to share your experience!</p>
+            </div>
+          )}
+
+          {/* ── write a review ── */}
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            className="max-w-2xl mx-auto bg-slate-50 dark:bg-slate-900 border border-border rounded-3xl p-6 md:p-10 shadow-sm">
+            <h3 className="text-xl md:text-2xl font-heading font-bold text-slate-900 dark:text-white mb-1">Share Your Experience</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-7">Your review is published instantly and helps others trust us.</p>
+            <ReviewForm services={services} onSubmitted={handleNewReview} />
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── 5. FAQ ───────────────────────────────────────────── */}
+      <section className="py-16 md:py-24 bg-white dark:bg-slate-950">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10 md:mb-14">
+            <h2 className="text-2xl md:text-4xl font-heading font-bold mb-3 text-slate-900 dark:text-white">Frequently Asked Questions</h2>
+            <p className="text-slate-600 dark:text-slate-300 text-sm">Got questions? We have got answers.</p>
+          </div>
+          {faqs.slice(0, 4).map((faq, index) => (
+            <FAQItem key={index} faq={faq} isOpen={openFaqIndex === index}
+              toggle={() => setOpenFaqIndex(openFaqIndex === index ? -1 : index)} />
+          ))}
+          <div className="text-center mt-6">
+            <Link to="/about" className="text-primary hover:underline font-medium text-sm">View more FAQs →</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 6. CONTACT ───────────────────────────────────────── */}
+      <section className="py-16 md:py-24 bg-slate-50 dark:bg-slate-900 relative">
+        <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-start">
+            <div>
+              <h2 className="text-2xl md:text-4xl font-heading font-bold mb-4 text-slate-900 dark:text-white">Get in Touch</h2>
+              <p className="text-sm md:text-lg text-slate-600 dark:text-slate-300 mb-6 leading-relaxed">
+                Ready to resolve your IT issues? Fill out the form, or reach us directly via phone or WhatsApp.
+              </p>
+              <div className="space-y-4 mb-8">
+                <div className="flex items-start gap-4">
+                  <div className="w-11 h-11 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-primary shadow-sm shrink-0">
+                    <Server size={18} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 dark:text-white text-sm">Our Office</h4>
+                    <p className="text-slate-600 dark:text-slate-400 text-xs mt-1">{companyInfo.address}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="w-11 h-11 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-primary shadow-sm shrink-0">
+                    <Clock size={18} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 dark:text-white text-sm">Business Hours</h4>
+                    <p className="text-slate-600 dark:text-slate-400 text-xs mt-1">{companyInfo.businessHours}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <a href={`tel:${companyInfo.phone}`}
+                  className="flex items-center justify-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold py-3.5 px-6 rounded-full text-sm hover:opacity-90 transition-opacity">
+                  <Phone size={16} /> Call Us
+                </a>
+                <a href={`https://wa.me/91${companyInfo.whatsapp}`} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 bg-green-600 text-white font-semibold py-3.5 px-6 rounded-full text-sm hover:bg-green-700 transition-colors">
+                  <MessageCircle size={16} /> WhatsApp
+                </a>
+              </div>
+            </div>
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
+              <ContactForm />
+            </motion.div>
+          </div>
+        </div>
+      </section>
+    </>
+  );
+};
+
+export default Home;
