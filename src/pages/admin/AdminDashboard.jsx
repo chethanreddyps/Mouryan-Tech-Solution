@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Settings, Image as ImageIcon, Users, LogOut, Loader2, Save, Upload, Trash2, Star } from 'lucide-react';
 import { useContent } from '../../context/ContentContext';
 import { clearAdminAuth, getAdminAuthHeaders } from '../../utils/adminAuth';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../../utils/api';
 
 const AdminDashboard = () => {
   const [data, setData] = useState(null);
@@ -12,14 +11,14 @@ const AdminDashboard = () => {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('company');
   const [message, setMessage] = useState('');
-  
+
   const navigate = useNavigate();
   const { refreshContent } = useContent();
 
   useEffect(() => {
     const initializeDashboard = async () => {
       try {
-        const sessionResponse = await fetch(`${API}/api/admin/session`, {
+        const sessionResponse = await fetch(`${API_BASE_URL}/api/admin/session`, {
           headers: getAdminAuthHeaders()
         });
         if (!sessionResponse.ok) {
@@ -40,7 +39,7 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const res = await fetch(`${API}/api/content`);
+      const res = await fetch(`${API_BASE_URL}/api/content`);
       if (res.status === 401) {
         clearAdminAuth();
         navigate('/admin', { replace: true });
@@ -59,7 +58,7 @@ const AdminDashboard = () => {
     setSaving(true);
     setMessage('');
     try {
-      const res = await fetch(`${API}/api/content`, {
+      const res = await fetch(`${API_BASE_URL}/api/content`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
         body: JSON.stringify({ data })
@@ -96,41 +95,41 @@ const AdminDashboard = () => {
       {/* Sidebar */}
       <div className="admin-sidebar w-64 border-r border-border p-6 flex flex-col h-screen fixed">
         <h2 className="text-xl font-bold font-heading mb-8">Admin Panel</h2>
-        
+
         <nav className="space-y-2 flex-grow">
-          <button 
+          <button
             onClick={() => setActiveTab('company')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === 'company' ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
           >
             <Settings size={20} /> Company Info
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('services')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === 'services' ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === 'services' ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-slate-100 dark:bg-slate-800'}`}
           >
             <Users size={20} /> Services
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('faqs')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === 'faqs' ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === 'faqs' ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-slate-100 dark:bg-slate-800'}`}
           >
             <Users size={20} /> FAQs
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('gallery')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === 'gallery' ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === 'gallery' ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-slate-100 dark:bg-slate-800'}`}
           >
             <ImageIcon size={20} /> Gallery
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('reviews')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === 'reviews' ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === 'reviews' ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-slate-100 dark:bg-slate-800'}`}
           >
             <Star size={20} /> Reviews
           </button>
         </nav>
 
-        <button 
+        <button
           onClick={handleLogout}
           className="flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg mt-auto transition-colors"
         >
@@ -145,7 +144,7 @@ const AdminDashboard = () => {
             <h1 className="text-3xl font-bold font-heading capitalize">{activeTab.replace(/([A-Z])/g, ' $1').trim()}</h1>
             <div className="flex items-center gap-4">
               {message && <span className="text-sm font-medium text-green-600">{message}</span>}
-              <button 
+              <button
                 onClick={handleSave}
                 disabled={saving}
                 className="bg-primary hover:bg-primary-hover text-white px-6 py-2.5 rounded-lg font-medium flex items-center gap-2 disabled:opacity-50"
@@ -157,23 +156,23 @@ const AdminDashboard = () => {
           </div>
 
           <div className="admin-card rounded-2xl shadow-sm border border-border p-8">
-            
+
             {activeTab === 'company' && data.companyInfo && (
               <div className="space-y-4">
                 {Object.keys(data.companyInfo).map((key) => (
                   <div key={key}>
                     <label className="block text-sm font-medium mb-1 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</label>
                     {key === 'description' ? (
-                      <textarea 
+                      <textarea
                         rows={4}
-                        value={data.companyInfo[key]} 
+                        value={data.companyInfo[key]}
                         onChange={(e) => setData({...data, companyInfo: {...data.companyInfo, [key]: e.target.value}})}
                         className="w-full px-4 py-2 border border-border rounded-lg bg-slate-50 dark:bg-slate-800 outline-none focus:ring-2 focus:ring-primary"
                       />
                     ) : (
-                      <input 
-                        type="text" 
-                        value={data.companyInfo[key]} 
+                      <input
+                        type="text"
+                        value={data.companyInfo[key]}
                         onChange={(e) => setData({...data, companyInfo: {...data.companyInfo, [key]: e.target.value}})}
                         className="w-full px-4 py-2 border border-border rounded-lg bg-slate-50 dark:bg-slate-800 outline-none focus:ring-2 focus:ring-primary"
                       />
@@ -189,9 +188,9 @@ const AdminDashboard = () => {
                 <div className="space-y-6">
                   {data.services.map((service, index) => (
                     <div key={service.id} className="p-4 border border-border rounded-lg space-y-3">
-                      <input 
-                        type="text" 
-                        value={service.title} 
+                      <input
+                        type="text"
+                        value={service.title}
                         onChange={(e) => {
                           const newServices = [...data.services];
                           newServices[index].title = e.target.value;
@@ -200,8 +199,8 @@ const AdminDashboard = () => {
                         className="w-full px-4 py-2 border border-border rounded-lg bg-slate-50 font-bold"
                         placeholder="Title"
                       />
-                      <textarea 
-                        value={service.description} 
+                      <textarea
+                        value={service.description}
                         onChange={(e) => {
                           const newServices = [...data.services];
                           newServices[index].description = e.target.value;
@@ -210,9 +209,9 @@ const AdminDashboard = () => {
                         className="w-full px-4 py-2 border border-border rounded-lg bg-slate-50"
                         placeholder="Description"
                       />
-                      <input 
-                        type="text" 
-                        value={service.icon} 
+                      <input
+                        type="text"
+                        value={service.icon}
                         onChange={(e) => {
                           const newServices = [...data.services];
                           newServices[index].icon = e.target.value;
@@ -229,7 +228,7 @@ const AdminDashboard = () => {
 
             {activeTab === 'faqs' && (
               <div>
-                <button 
+                <button
                   onClick={() => setData({...data, faqs: [...data.faqs, { id: Date.now().toString(), question: 'New Question?', answer: 'Answer here.' }]})}
                   className="mb-6 bg-slate-200 dark:bg-slate-800 px-4 py-2 rounded-lg font-medium hover:bg-slate-300 transition-colors"
                 >
@@ -238,7 +237,7 @@ const AdminDashboard = () => {
                 <div className="space-y-6">
                   {data.faqs.map((faq, index) => (
                     <div key={faq.id} className="p-4 border border-border rounded-lg space-y-3 relative group">
-                      <button 
+                      <button
                         onClick={() => {
                           const newFaqs = data.faqs.filter((_, i) => i !== index);
                           setData({...data, faqs: newFaqs});
@@ -247,9 +246,9 @@ const AdminDashboard = () => {
                       >
                         Remove
                       </button>
-                      <input 
-                        type="text" 
-                        value={faq.question} 
+                      <input
+                        type="text"
+                        value={faq.question}
                         onChange={(e) => {
                           const newFaqs = [...data.faqs];
                           newFaqs[index].question = e.target.value;
@@ -258,8 +257,8 @@ const AdminDashboard = () => {
                         className="w-full pr-20 px-4 py-2 border border-border rounded-lg bg-slate-50 font-bold"
                         placeholder="Question"
                       />
-                      <textarea 
-                        value={faq.answer} 
+                      <textarea
+                        value={faq.answer}
                         onChange={(e) => {
                           const newFaqs = [...data.faqs];
                           newFaqs[index].answer = e.target.value;
@@ -289,7 +288,7 @@ const AdminDashboard = () => {
                         const formData = new FormData();
                         formData.append('image', file);
                         try {
-                          const response = await fetch(`${API}/api/upload`, {
+                          const response = await fetch(`${API_BASE_URL}/api/upload`, {
                             method: 'POST',
                             body: formData,
                             headers: getAdminAuthHeaders()

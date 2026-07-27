@@ -8,4 +8,14 @@ export default defineConfig({
     tailwindcss(),
     react(),
   ],
+  // The browser talks to this local path during development. Vite forwards it
+  // to Render, avoiding a separate localhost CORS setting on the API.
+  server: {
+    proxy: {
+      "/api": {
+        target: "https://mouryan-backend.onrender.com",
+        changeOrigin: true,
+      },
+    },
+  },
 });

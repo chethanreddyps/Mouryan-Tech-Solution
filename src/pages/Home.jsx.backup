@@ -36,16 +36,13 @@ const FAQItem = ({ faq, isOpen, toggle }) => (
         : <ChevronDown className="text-slate-400 shrink-0" size={20} />}
     </button>
     <AnimatePresence>
-      {isOpen ? (
+      {isOpen && (
         <motion.div
           initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
           exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}
-          className="px-5 py-4 text-slate-600 dark:text-slate-300 border-t border-border text-sm md:text-base leading-relaxed">
+          className="px-5 py-4"} className="px-5 py-4 text-slate-600 dark:text-slate-300 border-t border-border text-sm md:text-base leading-relaxed">
           {faq.answer}
         </motion.div>
-      ) : (
-        <>
-        </>
       )}
     </AnimatePresence>
   </div>
@@ -232,7 +229,7 @@ const ReviewForm = ({ services, onSubmitted }) => {
   );
 };
 
-/* ═════════════════════════════════════════════════════════════════ */
+/* ═════════════════════════════════════════════════════════════ */
 const Home = () => {
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
   const { companyInfo, services, faqs, reviews = [], refreshContent } = useContent();
@@ -405,7 +402,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ── 5. FAQ ───────────────────────────────────────── */}
+      {/* ── 5. FAQ ───────────────────────────────────────────── */}
       <section className="py-16 md:py-24 bg-white dark:bg-slate-950">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10 md:mb-14">
@@ -439,7 +436,7 @@ const Home = () => {
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-900 dark:text-white text-sm">Our Office</h4>
-                    <p className="text-slace-600 dark:text-slate-400 text-xs mt-1">{companyInfo.address}</p>
+                    <p className="text-slate-600 dark:text-slate-400 text-xs mt-1">{companyInfo.address}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -448,7 +445,7 @@ const Home = () => {
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-900 dark:text-white text-sm">Business Hours</h4>
-                    <p className="text-slace-600 dark:text-slate-400 text-xs mt-1">{companyInfo.businessHours}</p>
+                    <p className="text-slate-600 dark:text-slate-400 text-xs mt-1">{companyInfo.businessHours}</p>
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3">

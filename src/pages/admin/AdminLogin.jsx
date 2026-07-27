@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clearAdminAuth, getAdminAuthHeaders, getAdminToken, setAdminToken } from '../../utils/adminAuth';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../../utils/api';
 
 const AdminLogin = () => {
   const [password, setPassword] = useState('');
@@ -19,7 +18,7 @@ const AdminLogin = () => {
       }
 
       try {
-        const response = await fetch(`${API}/api/admin/session`, {
+        const response = await fetch(`${API_BASE_URL}/api/admin/session`, {
           headers: getAdminAuthHeaders()
         });
         if (response.ok) {
@@ -40,12 +39,12 @@ const AdminLogin = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${API}/api/login`, {
+      const response = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password })
       });
-      
+
       const data = await response.json();
       if (data.success) {
         setAdminToken(data.token);
@@ -70,15 +69,15 @@ const AdminLogin = () => {
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1">Password</label>
-            <input 
-              type="password" 
+            <input
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2 rounded-lg border border-border bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-primary outline-none"
               required
             />
           </div>
-          <button 
+          <button
             type="submit"
             className="w-full bg-primary text-white py-2 rounded-lg font-medium hover:bg-primary-hover transition-colors"
           >

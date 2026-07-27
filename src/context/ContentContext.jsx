@@ -1,9 +1,20 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API_BASE_URL } from '../utils/api';
 
 const ContentContext = createContext();
-const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export const useContent = () => useContext(ContentContext);
+
+// Older Drive records can contain URLs created while the API ran locally.
+// Keep those assets working by routing their API paths through the active API base.
+const resolveStoredAssetUrl = (url) => {
+  if (!url || !/^https?:\/\/(localhost|127\.0\.0\.1)(?::\d+)?\/api\//i.test(url)) {
+    return url;
+  }
+
+  const apiPath = new URL(url).pathname;
+  return `${API_BASE_URL || ""}${apiPath}`;
+};
 
 export const ContentProvider = ({ children }) => {
   const [content, setContent] = useState({
@@ -19,7 +30,7 @@ export const ContentProvider = ({ children }) => {
 
   const refreshContent = async () => {
     try {
-        const res = await fetch(`${apiBaseUrl}/api/content`);
+        const res = await fetch(`${API_BASE_URL}/api/content`);
         if (res.ok) {
         const data = await res.json();
         setContent({
@@ -27,8 +38,14 @@ export const ContentProvider = ({ children }) => {
           services: data.services || [],
           faqs: data.faqs || [],
           brands: data.brands || [],
-          gallery: data.gallery || [],
-          reviews: data.reviews || [],
+          gallery: (data.gallery || []).map((item) => ({
+            ...item,
+            url: resolveStoredAssetUrl(item.url),
+          })),
+          reviews: (data.reviews || []).map((item) => ({
+            ...item,
+            imageUrl: resolveStoredAssetUrl(item.imageUrl),
+          })),
           loading: false,
           error: null
         });
