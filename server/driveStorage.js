@@ -19,22 +19,15 @@ const readCredentials = () => {
 };
 
 const getDrive = () => {
-  const oauthClientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
-  const oauthClientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
-  const oauthRefreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
-
-  if (oauthClientId && oauthClientSecret && oauthRefreshToken) {
-    const auth = new google.auth.OAuth2(oauthClientId, oauthClientSecret);
-    auth.setCredentials({ refresh_token: oauthRefreshToken });
-    return google.drive({ version: 'v3', auth });
-  }
-
   const credentials = readCredentials();
   if (!credentials || !process.env.GOOGLE_DRIVE_FOLDER_ID) return null;
 
   const auth = new google.auth.GoogleAuth({
     credentials,
-    scopes: ['https://www.googleapis.com/auth/drive.file']
+    // A Service Account needs full Drive scope to discover existing files
+    // shared from another account. drive.file only exposes files created or
+    // explicitly opened by this app, so it cannot find the existing content JSON.
+    scopes: ['https://www.googleapis.com/auth/drive']
   });
   return google.drive({ version: 'v3', auth });
 };
@@ -77,12 +70,14 @@ const uploadToDrive = async (file) => {
       mimeType: file.mimetype
     },
     media: { mimeType: file.mimetype, body: Readable.from(file.buffer) },
-    fields: 'id'
+    fields: 'id',
+    supportsAllDrives: true
   });
 
   await drive.permissions.create({
     fileId: created.data.id,
-    requestBody: { role: 'reader', type: 'anyone' }
+    requestBody: { role: 'reader', type: 'anyone' },
+    supportsAllDrives: true
   });
 
   return created.data.id;

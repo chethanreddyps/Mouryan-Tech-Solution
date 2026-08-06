@@ -220,10 +220,11 @@ app.get('/api/images/:fileId', async (req, res) => {
     const drive = requireDrive();
     const metadata = await drive.files.get({
       fileId,
-      fields: 'mimeType,name,modifiedTime'
+      fields: 'mimeType,name,modifiedTime',
+      supportsAllDrives: true
     });
     const media = await drive.files.get(
-      { fileId, alt: 'media' },
+      { fileId, alt: 'media', supportsAllDrives: true },
       { responseType: 'stream' }
     );
 

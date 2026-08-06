@@ -4,6 +4,13 @@ const { requireDrive } = require('./driveStorage');
 const CONTENT_FILE_NAME = 'mouryan-site-content.json';
 let contentFileId;
 
+const driveListOptions = {
+  supportsAllDrives: true,
+  includeItemsFromAllDrives: true,
+  corpora: 'allDrives',
+  spaces: 'drive'
+};
+
 const getContentFileId = async () => {
   if (contentFileId) return contentFileId;
 
@@ -12,7 +19,8 @@ const getContentFileId = async () => {
   const response = await drive.files.list({
     q: `'${folderId}' in parents and name = '${CONTENT_FILE_NAME}' and trashed = false`,
     fields: 'files(id)',
-    pageSize: 1
+    pageSize: 1,
+    ...driveListOptions
   });
   contentFileId = response.data.files?.[0]?.id;
   return contentFileId;
@@ -25,7 +33,10 @@ const readData = async () => {
   }
 
   const drive = requireDrive();
-  const response = await drive.files.get({ fileId, alt: 'media' }, { responseType: 'arraybuffer' });
+  const response = await drive.files.get(
+    { fileId, alt: 'media', supportsAllDrives: true },
+    { responseType: 'arraybuffer' }
+  );
   return JSON.parse(Buffer.from(response.data).toString('utf8'));
 };
 
@@ -36,7 +47,7 @@ const writeData = async (data) => {
   const media = { mimeType: 'application/json', body: Readable.from(body) };
 
   if (fileId) {
-    await drive.files.update({ fileId, media });
+    await drive.files.update({ fileId, media, supportsAllDrives: true });
     return;
   }
 
@@ -47,7 +58,8 @@ const writeData = async (data) => {
       parents: [process.env.GOOGLE_DRIVE_FOLDER_ID]
     },
     media,
-    fields: 'id'
+    fields: 'id',
+    supportsAllDrives: true
   });
   contentFileId = created.data.id;
 };
